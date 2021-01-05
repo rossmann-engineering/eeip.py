@@ -144,8 +144,18 @@ class Encapsulation:
         self.__session_handle = session_handle
 
     @property
+    def command_specific_data(self):
+        return self.__command_specific_data
+
+    @command_specific_data.setter
+    def command_specific_data(self, command_specific_data):
+        self.__command_specific_data = command_specific_data
+
+    @property
     def status(self):
         return self.__status
+
+
 
 class CommonPacketFormat:
     def __init__(self):

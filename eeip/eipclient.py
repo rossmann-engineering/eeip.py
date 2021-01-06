@@ -1,4 +1,7 @@
-from . import encapsulation
+import encapsulation
+import threading
+import socket
+import struct
 
 class EEIPClient:
     def __init__(self):
@@ -9,13 +12,29 @@ class EEIPClient:
         self.multicast_address = 0
         self.connection_serial_number = 0
 
+    def ListIdentity(self):
+        """
+        List and identify potential targets. This command shall be sent as braodcast massage using UDP.
+        :return: List containing the received informations from all devices
+        """
+        senddata = bytearray(24)
+        senddata[0] = 0x63      #Command for "ListIdentity"
+        client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        client.settimeout(5)
+        #client.bind(("", 44818))
+        client.sendto(senddata, ("<broadcast>", 44818))
+        while True:
+            data, addr = client.recv(1024)
+            print("received message: %s" % data)
+
 
     def register_session(self, address, port = 0xAF12):
         """
         Sends a RegisterSession command to target to initiate session
-        address: IP-Address of the target device
-        port: Port of the target device (Should be 0xAF12)
-        returns: Session Handle
+        :param address IP-Address of the target device
+        :param port Port of the target device (Should be 0xAF12)
+        :return: Session Handle
         """
         if self.__session_handle != 0:
             return self.__session_handle
@@ -28,8 +47,34 @@ class EEIPClient:
         __encapsulation.command_specific_data.append(0)
 
         self.__ip_address = encapsulation.Encapsulation.CIPIdentityItem.get_ip_address(address)
+        if self.__tcpClient_socket is not None:
+            self.__tcpClient_socket.settimeout(5)
+            self.__tcpClientSocket.connect((self.__ip_address, self.__port))
+            self.__thread = threading.Thread(target=self.__listen, args=())
+            self.__thread.start()
 
+    def __listen(self):
+        self.__stoplistening = False
+        self.__receivedata = bytearray()
+        try:
+            while not self.__stoplistening:
+                if len(self.__receivedata) == 0:
+                    self.__receivedata = bytearray()
+                    self.__timeout = 500
+                    if self.__tcpClientSocket is not None:
+                        self.__receivedata = self.__tcpClientSocket.recv(256)
+        except socket.timeout:
+            self.__receivedata = None
 
+    def close(self):
+        """
+        Closes  TCP-Socket connection
+        """
+        if self.__tcpClientSocket is not None:
+            self.__stoplistening = True
+            self.__tcpClientSocket.shutdown(socket.SHUT_RDWR)
+            self.__tcpClientSocket.close()
+        self.__connected = False
 
     @property
     def tcp_port(self):
@@ -402,3 +447,8 @@ class EEIPClient:
     @last_received_implicit_message.setter
     def last_received_implicit_message(self, last_received_implicit_message):
         self.__last_received_implicit_message = last_received_implicit_message
+
+if __name__ == "__main__":
+    eeipclient = EEIPClient()
+    eeipclient.ListIdentity()
+

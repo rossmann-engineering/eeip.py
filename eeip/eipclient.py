@@ -14,7 +14,7 @@ class EEIPClient:
 
     def ListIdentity(self):
         """
-        List and identify potential targets. This command shall be sent as braodcast massage using UDP.
+        List and identify potential targets. This command shall be sent as broadcast massage using UDP.
         :return: List containing the received informations from all devices
         """
         senddata = bytearray(24)

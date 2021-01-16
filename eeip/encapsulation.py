@@ -140,7 +140,7 @@ class Encapsulation:
         return self.__session_handle
 
     @session_handle.setter
-    def command(self, session_handle):
+    def session_handle(self, session_handle):
         self.__session_handle = session_handle
 
     @property

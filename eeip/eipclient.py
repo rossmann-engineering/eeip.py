@@ -53,6 +53,15 @@ class EEIPClient:
             self.__thread = threading.Thread(target=self.__listen, args=())
             self.__thread.start()
 
+    def unregister_session(self):
+        """
+        Sends an UnRegisterSession command to a target to terminate session
+        """
+        __encapsulation = encapsulation.Encapsulation()
+        __encapsulation.command = encapsulation.CommandsEnum.UNREGISTER_SESSIOM
+        __encapsulation.length = 0
+        __encapsulation.session_handle = self.__session_handle
+
     def __listen(self):
         self.__stoplistening = False
         self.__receivedata = bytearray()
@@ -450,5 +459,5 @@ class EEIPClient:
 
 if __name__ == "__main__":
     eeipclient = EEIPClient()
-    eeipclient.ListIdentity()
+    eeipclient.register_session('192.168.193.112')
 

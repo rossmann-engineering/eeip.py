@@ -2,6 +2,7 @@ import encapsulation
 import threading
 import socket
 import struct
+import traceback
 
 class EEIPClient:
     def __init__(self):
@@ -11,6 +12,7 @@ class EEIPClient:
         self.__connection_id_t_o = 0
         self.multicast_address = 0
         self.connection_serial_number = 0
+        self.__receivedata = bytearray()
 
     def ListIdentity(self):
         """
@@ -47,12 +49,21 @@ class EEIPClient:
         __encapsulation.command_specific_data.append(0)
         self.ip_address = address
         #self.__ip_address = encapsulation.Encapsulation.CIPIdentityItem().get_ip_address(address)
-        #self.__tcpClient_socket =
+        self.__tcpClient_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
         if self.__tcpClient_socket is not None:
             self.__tcpClient_socket.settimeout(5)
-            self.__tcpClientSocket.connect((self.__ip_address, self.__port))
+            self.__tcpClient_socket.connect((address, port))
             self.__thread = threading.Thread(target=self.__listen, args=())
             self.__thread.start()
+            self.__tcpClient_socket.send(bytearray(__encapsulation.to_bytes()))
+
+            try:
+                while len(self.__receivedata) == 0:
+                    pass
+            except Exception:
+                raise Exception('Read Timeout' + traceback.format_exc())
+
 
     def unregister_session(self):
         """
@@ -69,12 +80,13 @@ class EEIPClient:
         try:
             while not self.__stoplistening:
                 if len(self.__receivedata) == 0:
-                    self.__receivedata = bytearray()
+                    #self.__receivedata = bytearray()
                     self.__timeout = 500
-                    if self.__tcpClientSocket is not None:
-                        self.__receivedata = self.__tcpClientSocket.recv(256)
+                    if self.__tcpClient_socket is not None:
+                        self.__receivedata = self.__tcpClient_socket.recv(255)
+                        print (self.__receivedata)
         except socket.timeout:
-            self.__receivedata = None
+            self.__receivedata = bytearray()
 
     def close(self):
         """

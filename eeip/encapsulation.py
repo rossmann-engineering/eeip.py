@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import Enum, IntEnum
 
 
-class StatusEnum(Enum):
+class StatusEnum(IntEnum):
     '''
     Table 2-3.3 Error Codes
     '''
@@ -13,7 +13,7 @@ class StatusEnum(Enum):
     INVALID_LENGTH = 0x0065,
     UNSUPPORTED_ENCAPSULTATION_PROTOCOL = 0x0069
 
-class CommandsEnum(Enum):
+class CommandsEnum(IntEnum):
     '''
     Table 2-3.2 Encapsulation Commands
     '''
@@ -41,13 +41,16 @@ class SocketAddress:
 class Encapsulation:
 
     def __init__(self):
-        self.__sender_context = list()
+        self.__sender_context = [0] * 8
         self.__command_specific_data = list()
+        self.__session_handle = 0
+        self.__options = 0
+        self.__status = StatusEnum.SUCCESS
 
     def to_bytes(self):
         returnvalue = list()
-        returnvalue.append(self.__command & 0xFF)
-        returnvalue.append(self.__command & 0xFF00 >> 8)
+        returnvalue.append(int(self.__command) & 0xFF)
+        returnvalue.append(int(self.__command) & 0xFF00 >> 8)
         returnvalue.append(self.__length & 0xFF)
         returnvalue.append(self.__length & 0xFF00 >> 8)
         returnvalue.append(self.__session_handle & 0xFF)

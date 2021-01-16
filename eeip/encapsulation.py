@@ -132,7 +132,7 @@ class Encapsulation:
         return self.__length
 
     @length.setter
-    def command(self, length):
+    def length(self, length):
         self.__length = length
 
     @property

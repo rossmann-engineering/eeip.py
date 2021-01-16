@@ -45,8 +45,9 @@ class EEIPClient:
         __encapsulation.command_specific_data.append(0)
         __encapsulation.command_specific_data.append(0)     #Session option shall be set to "0"
         __encapsulation.command_specific_data.append(0)
-
-        self.__ip_address = encapsulation.Encapsulation.CIPIdentityItem.get_ip_address(address)
+        self.ip_address = address
+        #self.__ip_address = encapsulation.Encapsulation.CIPIdentityItem().get_ip_address(address)
+        #self.__tcpClient_socket =
         if self.__tcpClient_socket is not None:
             self.__tcpClient_socket.settimeout(5)
             self.__tcpClientSocket.connect((self.__ip_address, self.__port))

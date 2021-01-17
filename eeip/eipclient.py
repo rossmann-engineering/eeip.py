@@ -3,6 +3,7 @@ import threading
 import socket
 import struct
 import traceback
+import cip
 
 class EEIPClient:
     def __init__(self):
@@ -64,6 +65,10 @@ class EEIPClient:
             except Exception:
                 raise Exception('Read Timeout' + traceback.format_exc())
 
+            self.__session_handle = self.__receivedata[4] | (self.__receivedata[5]) << 8 | (self.__receivedata[6]) << 16 | (self.__receivedata[7]) << 24
+
+            return self.__session_handle;
+
 
     def unregister_session(self):
         """
@@ -73,6 +78,84 @@ class EEIPClient:
         __encapsulation.command = encapsulation.CommandsEnum.UNREGISTER_SESSIOM
         __encapsulation.length = 0
         __encapsulation.session_handle = self.__session_handle
+        self.__tcpClient_socket.send(bytearray(__encapsulation.to_bytes()))
+        if self.__tcpClient_socket is not None:
+            self.__stoplistening = True
+            self.__tcpClient_socket.shutdown(socket.SHUT_RDWR)
+            self.__tcpClient_socket.close()
+        self.__session_handle = 0
+
+
+    def get_attribute_single(self, class_id, instance_id, attribute_id):
+
+        requested_path = self.get_epath(class_id, instance_id, attribute_id)
+        #If the session handle is 0, try to register a session with the predefined IP-Address and Port
+        if self.__session_handle == 0:
+            self.__session_handle = self.register_session(self.__ip_address, self.__tcp_port)
+        __encapsulation = encapsulation.Encapsulation()
+        __encapsulation.SessionHandle = self.__session_handle;
+        __encapsulation.command = encapsulation.CommandsEnum.SEND_RRDATA
+        __encapsulation.length = 18 + len(requested_path)
+
+        #---------------Interface Handle CIP
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        #----------------Interface Handle CIP
+
+        #----------------Timeout
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        #----------------Timeout
+
+        #Common Packet Format (Table 2-6.1)
+        common_packet_format = encapsulation.CommonPacketFormat()
+
+        common_packet_format.data_length = 2 + len(requested_path)
+
+        #----------------CIP Command "Get Attribute Single"
+        common_packet_format.data.append(int(cip.CIPCommonServices.GET_ATTRIBUTE_SINGLE))
+        #---------------CIP Command "Get Attribute Single"
+
+        #----------------Requested Path size (number of 16 bit words)
+        common_packet_format.data.append((len(requested_path) / 2) & 0xFF);
+        #----------------Requested Path size (number of 16 bit words)
+
+        #----------------Path segment for Class ID
+        #----------------Path segment for Class ID
+
+        #----------------Path segment for Instance ID
+        #----------------Path segment for Instace ID
+
+        #----------------Path segment for Attribute ID
+        #----------------Path segment for Attribute ID
+
+        for i in requested_path:
+            common_packet_format.data.append(i);
+
+
+        data_to_write = __encapsulation + common_packet_format
+
+        self.__tcpClient_socket.send(bytearray(data_to_write.to_bytes()))
+        self.__receivedata = bytearray()
+        try:
+            while len(self.__receivedata) == 0:
+                pass
+        except Exception:
+            raise Exception('Read Timeout')
+
+        #--------------------------BEGIN Error?
+        if self.__receivedata[42] != 0: #Exception codes see "Table B-1.1 CIP General Status Codes"
+            raise cip.CIPException(cip.get_status_code(self.__receivedata[42]))
+        #--------------------------END Error?
+
+        returnvalue = list()
+        for i in range(len(self.__receivedata - 44)):
+            returnvalue.append(self.__receivedata[i+44])
+
+        return returnvalue;
+
 
     def __listen(self):
         self.__stoplistening = False
@@ -97,6 +180,47 @@ class EEIPClient:
             self.__tcpClientSocket.shutdown(socket.SHUT_RDWR)
             self.__tcpClientSocket.close()
         self.__connected = False
+
+    def get_epath(self, class_id, instance_id, attribute_id):
+        """
+        Get the Encrypted Request Path - See Volume 1 Appendix C (C9)
+        e.g. for 8 Bit: 20 05 24 02 30 01
+        for 16 Bit: 21 00 05 00 24 02 30 01
+        :param class_id: Requested Class ID
+        :param instance_id: Requested Instance ID
+        :param attribute_id: Requested Attribute ID - if "0" the attribute will be ignored
+        :return: Encrypted Request Path
+        """
+        returnvalue = list()
+        if class_id < 0xff:
+            returnvalue.append(0x20)
+            returnvalue.append(class_id & 0xFF)
+
+        else:
+            returnvalue.append(0x21)
+            returnvalue.append(0)
+            returnvalue.append(class_id & 0x00FF)
+            returnvalue.append((class_id & 0xFF00) >> 8)
+
+        if instance_id < 0xff:
+            returnvalue.append(0x24)
+            returnvalue.append(instance_id & 0xFF)
+        else:
+            returnvalue.append(0x25)
+            returnvalue.append(0)
+            returnvalue.append(instance_id & 0x00FF)
+            returnvalue.append((instance_id & 0xFF00) >> 8)
+
+        if attribute_id != 0:
+            if attribute_id < 0xff:
+                returnvalue.append(0x30)
+                returnvalue.append(attribute_id & 0xFF)
+            else:
+                returnvalue.append(0x31)
+                returnvalue.append(0)
+                returnvalue.append(attribute_id & 0x00FF)
+                returnvalue.append((attribute_id & 0xFF00) >> 8)
+        return returnvalue
 
     @property
     def tcp_port(self):
@@ -473,4 +597,5 @@ class EEIPClient:
 if __name__ == "__main__":
     eeipclient = EEIPClient()
     eeipclient.register_session('192.168.193.112')
+    eeipclient.unregister_session()
 

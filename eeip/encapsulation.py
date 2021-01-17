@@ -49,18 +49,18 @@ class Encapsulation:
 
     def to_bytes(self):
         returnvalue = list()
-        returnvalue.append(int(self.__command) & 0xFF)
-        returnvalue.append(int(self.__command) & 0xFF00 >> 8)
-        returnvalue.append(self.__length & 0xFF)
-        returnvalue.append(self.__length & 0xFF00 >> 8)
+        returnvalue.append(int(self.__command) & 0x00FF)
+        returnvalue.append((int(self.__command) & 0xFF00) >> 8)
+        returnvalue.append(self.__length & 0x00FF)
+        returnvalue.append((self.__length & 0xFF00) >> 8)
         returnvalue.append(self.__session_handle & 0xFF)
-        returnvalue.append(self.__session_handle & 0xFF00 >> 8)
-        returnvalue.append(self.__session_handle & 0xFF0000 >> 16)
-        returnvalue.append(self.__session_handle & 0xFF000000 >> 24)
+        returnvalue.append((self.__session_handle & 0xFF00) >> 8)
+        returnvalue.append((self.__session_handle & 0xFF0000) >> 16)
+        returnvalue.append((self.__session_handle & 0xFF000000) >> 24)
         returnvalue.append(self.__status & 0xFF)
-        returnvalue.append(self.__status & 0xFF00 >> 8)
-        returnvalue.append(self.__status & 0xFF0000 >> 16)
-        returnvalue.append(self.__status & 0xFF000000 >> 24)
+        returnvalue.append((self.__status & 0xFF00) >> 8)
+        returnvalue.append((self.__status & 0xFF0000) >> 16)
+        returnvalue.append((self.__status & 0xFF000000) >> 24)
         returnvalue.append(self.__sender_context[0] & 0xFF)
         returnvalue.append(self.__sender_context[1] & 0xFF)
         returnvalue.append(self.__sender_context[2] & 0xFF)
@@ -70,9 +70,9 @@ class Encapsulation:
         returnvalue.append(self.__sender_context[6] & 0xFF)
         returnvalue.append(self.__sender_context[7] & 0xFF)
         returnvalue.append(self.__options& 0xFF)
-        returnvalue.append(self.__options & 0xFF00 >> 8)
-        returnvalue.append(self.__options & 0xFF0000 >> 16)
-        returnvalue.append(self.__options & 0xFF000000 >> 24)
+        returnvalue.append((self.__options & 0xFF00) >> 8)
+        returnvalue.append((self.__options & 0xFF0000) >> 16)
+        returnvalue.append((self.__options & 0xFF000000) >> 24)
         for data in self.__command_specific_data:
             returnvalue.append(data & 0xFF)
         return returnvalue
@@ -165,7 +165,7 @@ class CommonPacketFormat:
         self.item_count = 2
         self.address_item = 0x0000
         self.address_length = 0
-        self.data_item = 0x82                       #0xB2 = Unconnected Data Item
+        self.data_item = 0xB2                       #0xB2 = Unconnected Data Item
         self.data_length = 8
         self.data = list()
         self.sockaddr_info_item_o_t = 0x8001        #8000 for O->T and 8001 for T->O - Volume 2 Table 2-6.9

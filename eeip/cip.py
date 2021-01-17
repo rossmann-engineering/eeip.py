@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import Enum,IntEnum
 
 
-class CIPCommonServices(Enum):
+class CIPCommonServices(IntEnum):
     '''
     Table A-3.1 Volume 1 Chapter A-3
     '''

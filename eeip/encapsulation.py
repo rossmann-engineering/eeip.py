@@ -190,7 +190,7 @@ class CommonPacketFormat:
             returnvalue.append(item)
 
         #Add Socket Address to info Item
-        if self.sockaddr_info_item_o_t is not None:
+        if self.socketaddr_info_o_t is not None:
             returnvalue.append(self.sockaddr_info_item_o_t & 0xFF)
             returnvalue.append(self.sockaddr_info_item_o_t & 0xFF00 >> 8)
             returnvalue.append(self.sockaddr_info_length & 0xFF)

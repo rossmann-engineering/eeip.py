@@ -119,7 +119,7 @@ class EEIPClient:
         #---------------CIP Command "Get Attribute Single"
 
         #----------------Requested Path size (number of 16 bit words)
-        common_packet_format.data.append((len(requested_path) / 2) & 0xFF);
+        common_packet_format.data.append(int(len(requested_path) / 2) & 0xFF);
         #----------------Requested Path size (number of 16 bit words)
 
         #----------------Path segment for Class ID
@@ -135,10 +135,10 @@ class EEIPClient:
             common_packet_format.data.append(i);
 
 
-        data_to_write = __encapsulation + common_packet_format
-
-        self.__tcpClient_socket.send(bytearray(data_to_write.to_bytes()))
+        data_to_write = __encapsulation.to_bytes() + common_packet_format.to_bytes()
         self.__receivedata = bytearray()
+        self.__tcpClient_socket.send(bytearray(data_to_write))
+
         try:
             while len(self.__receivedata) == 0:
                 pass
@@ -146,8 +146,9 @@ class EEIPClient:
             raise Exception('Read Timeout')
 
         #--------------------------BEGIN Error?
-        if self.__receivedata[42] != 0: #Exception codes see "Table B-1.1 CIP General Status Codes"
-            raise cip.CIPException(cip.get_status_code(self.__receivedata[42]))
+        if len(self.__receivedata) > 41:
+            if self.__receivedata[42] != 0: #Exception codes see "Table B-1.1 CIP General Status Codes"
+                raise cip.CIPException(cip.get_status_code(self.__receivedata[42]))
         #--------------------------END Error?
 
         returnvalue = list()
@@ -597,5 +598,6 @@ class EEIPClient:
 if __name__ == "__main__":
     eeipclient = EEIPClient()
     eeipclient.register_session('192.168.193.112')
+    eeipclient.get_attribute_single(4,101,3)
     eeipclient.unregister_session()
 

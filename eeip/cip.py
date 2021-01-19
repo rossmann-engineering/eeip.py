@@ -82,6 +82,6 @@ def get_status_code(code):
     else: return 'unknown'
 
 class CIPException(Exception):
-    def __init__(self, expression, message):
-        self.expression = expression
+    def __init__(self, message):
+        #self.expression = expression
         self.message = message

@@ -93,7 +93,7 @@ class EEIPClient:
         if self.__session_handle == 0:
             self.__session_handle = self.register_session(self.__ip_address, self.__tcp_port)
         __encapsulation = encapsulation.Encapsulation()
-        __encapsulation.SessionHandle = self.__session_handle;
+        __encapsulation.session_handle = self.__session_handle
         __encapsulation.command = encapsulation.CommandsEnum.SEND_RRDATA
         __encapsulation.length = 18 + len(requested_path)
 
@@ -152,10 +152,10 @@ class EEIPClient:
         #--------------------------END Error?
 
         returnvalue = list()
-        for i in range(len(self.__receivedata - 44)):
+        for i in range(len(self.__receivedata) - 44):
             returnvalue.append(self.__receivedata[i+44])
 
-        return returnvalue;
+        return returnvalue
 
 
     def __listen(self):
@@ -598,6 +598,6 @@ class EEIPClient:
 if __name__ == "__main__":
     eeipclient = EEIPClient()
     eeipclient.register_session('192.168.193.112')
-    eeipclient.get_attribute_single(4,101,3)
+    print(eeipclient.get_attribute_single(4,101,3))
     eeipclient.unregister_session()
 

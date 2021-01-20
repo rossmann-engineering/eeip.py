@@ -115,7 +115,11 @@ class EEIPClient:
         common_packet_format.data_length = 2 + len(requested_path)
 
         #----------------CIP Command "Get Attribute Single"
-        common_packet_format.data.append(int(cip.CIPCommonServices.GET_ATTRIBUTE_SINGLE))
+        if attribute_id is not None:
+            common_packet_format.data.append(int(cip.CIPCommonServices.GET_ATTRIBUTE_SINGLE))
+        else:
+            common_packet_format.data.append(int(cip.CIPCommonServices.GET_ATTRIBUTES_ALL))
+
         #---------------CIP Command "Get Attribute Single"
 
         #----------------Requested Path size (number of 16 bit words)
@@ -156,6 +160,10 @@ class EEIPClient:
             returnvalue.append(self.__receivedata[i+44])
 
         return returnvalue
+
+
+    def get_attribute_all(self, class_id, instance_id):
+        return self.get_attribute_single(class_id, instance_id, None)
 
 
     def __listen(self):

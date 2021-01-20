@@ -1,9 +1,10 @@
-import encapsulation
+from eeip import encapsulation
 import threading
 import socket
 import struct
 import traceback
-import cip
+from eeip import cip
+from enum import Enum, IntEnum
 
 class EEIPClient:
     def __init__(self):
@@ -14,6 +15,8 @@ class EEIPClient:
         self.multicast_address = 0
         self.connection_serial_number = 0
         self.__receivedata = bytearray()
+
+        self.__udp_client_receive_closed = False
 
     def ListIdentity(self):
         """
@@ -87,7 +90,15 @@ class EEIPClient:
 
 
     def get_attribute_single(self, class_id, instance_id, attribute_id):
-
+        """
+        Implementation of Common Service "Get_Attribute_Single" - Service Code: 0x0E
+        Specification Vol. 1 Appendix A - Chapter A-4.12 - Page A-20
+        Returns the contents of the specified attribute.
+        :param class_id Class id of requested Attribute
+        :param instance_id Instance of Requested Attributes (0 for class Attributes)
+        :param attribute_id Requested attribute
+        :return: Requested Attribute value
+        """
         requested_path = self.get_epath(class_id, instance_id, attribute_id)
         #If the session handle is 0, try to register a session with the predefined IP-Address and Port
         if self.__session_handle == 0:
@@ -162,8 +173,159 @@ class EEIPClient:
         return returnvalue
 
 
-    def get_attribute_all(self, class_id, instance_id):
+    def get_attributes_all(self, class_id, instance_id):
+        """
+        Implementation of Common Service "Get_Attributes_All" - Service Code: 0x01
+        Specification Vol. 1 Appendix A - Chapter A-4.1 - Page A-7
+        Returns the contents of the instance or class attributes defined in the object definition.
+        :param class_id Class id of requested Attributes
+        :param instance_id Instance of Requested Attributes (0 for class Attributes)
+        :return: Requested Attributes
+        """
         return self.get_attribute_single(class_id, instance_id, None)
+
+
+    def set_attribute_single(self, class_id, instance_id, attribute_id, value):
+        """
+        Implementation of Common Service "Set_Attribute_Single" - Service Code: 0x10
+        Modifies an attribute value
+        Specification Vol. 1 Appendix A - Chapter A-4.13 - Page A-21
+        :param class_id Class id of requested Attribute to write
+        :param instance_id Instance of Requested Attribute to write (0 for class Attributes)
+        :param attribute_id Attribute to write
+        :param value value(s) to write in the requested attribute
+        """
+        requested_path = self.get_epath(class_id, instance_id, attribute_id)
+        # If the session handle is 0, try to register a session with the predefined IP-Address and Port
+        if self.__session_handle == 0:
+            self.__session_handle = self.register_session(self.__ip_address, self.__tcp_port)
+        __encapsulation = encapsulation.Encapsulation()
+        __encapsulation.session_handle = self.__session_handle
+        __encapsulation.command = encapsulation.CommandsEnum.SEND_RRDATA
+        __encapsulation.length = 18 + len(requested_path) + len(value)
+
+        # ---------------Interface Handle CIP
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        # ----------------Interface Handle CIP
+
+        # ----------------Timeout
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        # ----------------Timeout
+
+        # Common Packet Format (Table 2-6.1)
+        common_packet_format = encapsulation.CommonPacketFormat()
+
+        common_packet_format.data_length = 2 + len(requested_path) + len(value)
+
+        # ----------------CIP Command "Get Attribute Single"
+        common_packet_format.data.append(int(cip.CIPCommonServices.SET_ATTRIBUTE_SINGLE))
+
+        # ----------------Requested Path size (number of 16 bit words)
+        common_packet_format.data.append(int(len(requested_path) / 2) & 0xFF)
+        # ----------------Requested Path size (number of 16 bit words)
+
+        for i in requested_path:
+            common_packet_format.data.append(i)
+
+        for i in value:
+            common_packet_format.data.append(i)
+
+        data_to_write = __encapsulation.to_bytes() + common_packet_format.to_bytes()
+        self.__receivedata = bytearray()
+        self.__tcpClient_socket.send(bytearray(data_to_write))
+
+        try:
+            while len(self.__receivedata) == 0:
+                pass
+        except Exception:
+            raise Exception('Read Timeout')
+
+        # --------------------------BEGIN Error?
+        if len(self.__receivedata) > 41:
+            if self.__receivedata[42] != 0:  # Exception codes see "Table B-1.1 CIP General Status Codes"
+                raise cip.CIPException(cip.get_status_code(self.__receivedata[42]))
+        # --------------------------END Error?
+
+        returnvalue = list()
+        for i in range(len(self.__receivedata) - 44):
+            returnvalue.append(self.__receivedata[i + 44])
+
+        return returnvalue
+
+    def forward_open(self, large_forward_open = False):
+        self.__udp_client_receive_closed = False
+        o_t_header_offset = 2
+        if (self.__o_t_header_offset == RealTimeFormat.HEADER32BIT):
+            o_t_header_offset = 6
+        if (self.__o_t_header_offset == RealTimeFormat.HEARTBEAT):
+            o_t_header_offset = 0
+
+        t_o_header_offset = 2
+        if (self.__t_o_realtime_format == RealTimeFormat.HEADER32BIT):
+            t_o_header_offset = 6
+        if (self.__t_o_realtime_format == RealTimeFormat.HEARTBEAT):
+            t_o_header_offset = 0
+
+        length_offset = 5 + 0 if self.__t_o_connection_type == ConnectionType.NULL else 2 + 0 if self.__o_t_connection_type == ConnectionType.NULL else 2
+
+        __encapsulation = encapsulation.Encapsulation()
+        __encapsulation.session_handle = self.__session_handle
+        __encapsulation.command = encapsulation.CommandsEnum.SEND_RRDATA
+        #!!!!!!!!-----length field at the end
+
+        # ---------------Interface Handle CIP
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        # ----------------Interface Handle CIP
+
+        # ----------------Timeout
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        # ----------------Timeout
+
+        # Common Packet Format (Table 2-6.1)
+        common_packet_format = encapsulation.CommonPacketFormat()
+
+        common_packet_format.data_length = 41 + length_offset
+        if large_forward_open:
+            common_packet_format.data_length += 4
+
+        # ----------------CIP Command "Forward open" (Service code 0x54)
+        if not large_forward_open:
+            common_packet_format.data.append(0x54)
+        # ----------------CIP Command "Large Forward open" (Service code 0x58)
+        else:
+            common_packet_format.data.append(0x58)
+
+        # ----------------Requested Path Size
+        common_packet_format.data.append(2)
+        # ----------------Requested Path Size
+
+        # ----------------Path segment for the Class ID
+        common_packet_format.data.append(0x20)
+        common_packet_format.data.append(6)
+        # ----------------Path segment for the Class ID
+
+        # ----------------Path segment for the Instance ID
+        common_packet_format.data.append(0x24)
+        common_packet_format.data.append(1)
+        # ----------------Path segment for the Instance ID
+
+        # ----------------Priority and Time/Tick - Table 3-5.16 (Vol. 1)
+        common_packet_format.data.append(0x03)
+        # ----------------Priority and Time/Tick - Table 3-5.16 (Vol. 1)
+
+        # ----------------Timeout Ticks - Table 3-5.16 (Vol. 1)
+        common_packet_format.data.append(0xfa)
+        # ----------------Timeout Ticks - Table 3-5.16 (Vol. 1)
+
+
 
 
     def __listen(self):
@@ -603,9 +765,30 @@ class EEIPClient:
     def last_received_implicit_message(self, last_received_implicit_message):
         self.__last_received_implicit_message = last_received_implicit_message
 
+class ConnectionType(IntEnum):
+    NULL = 0,
+    MULTICAST = 1,
+    POINT_TO_POINT = 2
+
+class Priority(IntEnum):
+    LOW = 0,
+    HIGH = 1,
+    SCHEDULED = 2
+    URGENT = 3
+
+class RealTimeFormat(IntEnum):
+    MODELESS = 0,
+    ZEROLENGTH = 1,
+    HEARTBEAT = 2
+    HEADER32BIT = 3
+
+
 if __name__ == "__main__":
     eeipclient = EEIPClient()
     eeipclient.register_session('192.168.193.112')
-    print(eeipclient.get_attribute_single(4,0x65,3))
+    print(eeipclient.get_attribute_single(4,0x64,3))
+    eeipclient.set_attribute_single(4,0x64,3,[1])
+    #print(eeipclient.get_attributes_all(1, 1))
+
     eeipclient.unregister_session()
 

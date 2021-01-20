@@ -220,7 +220,7 @@ class EEIPClient:
             returnvalue.append(instance_id & 0x00FF)
             returnvalue.append((instance_id & 0xFF00) >> 8)
 
-        if attribute_id != 0:
+        if attribute_id != None:
             if attribute_id < 0xff:
                 returnvalue.append(0x30)
                 returnvalue.append(attribute_id & 0xFF)
@@ -606,6 +606,6 @@ class EEIPClient:
 if __name__ == "__main__":
     eeipclient = EEIPClient()
     eeipclient.register_session('192.168.193.112')
-    print(eeipclient.get_attribute_single(4,101,3))
+    print(eeipclient.get_attribute_single(4,0x65,3))
     eeipclient.unregister_session()
 

@@ -36,7 +36,7 @@ class SocketAddress:
         sin_family = int()
         sin_port = int()
         sin_address = int()
-        sin_zero = list()
+        sin_zero = [0] * 8
 
 class Encapsulation:
 
@@ -191,29 +191,30 @@ class CommonPacketFormat:
 
         #Add Socket Address to info Item
         if self.socketaddr_info_o_t is not None:
+            self.socketaddr_info_o_t.sin_zero = [0] * 8
             returnvalue.append(self.sockaddr_info_item_o_t & 0xFF)
             returnvalue.append((self.sockaddr_info_item_o_t & 0xFF00) >> 8)
             returnvalue.append(self.sockaddr_info_length & 0xFF)
             returnvalue.append((self.sockaddr_info_length & 0xFF00) >> 8)
 
-            returnvalue.append((self.sockaddr_info_item_o_t.sin_family & 0xFF00) >> 8)
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_family & 0xFF)
+            returnvalue.append((self.socketaddr_info_o_t.sin_family & 0xFF00) >> 8)
+            returnvalue.append(self.socketaddr_info_o_t.sin_family & 0xFF)
 
-            returnvalue.append((self.sockaddr_info_item_o_t.sin_port & 0xFF00) >> 8)
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_port & 0xFF)
+            returnvalue.append((self.socketaddr_info_o_t.sin_port & 0xFF00) >> 8)
+            returnvalue.append(self.socketaddr_info_o_t.sin_port & 0xFF)
 
-            returnvalue.append((self.sockaddr_info_item_o_t.sin_address & 0xFF00) >> 24)
-            returnvalue.append((self.sockaddr_info_item_o_t.sin_address & 0xFF00) >> 16)
-            returnvalue.append((self.sockaddr_info_item_o_t.sin_address & 0xFF00) >> 8)
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_address & 0xFF)
+            returnvalue.append((self.socketaddr_info_o_t.sin_address & 0xFF00) >> 24)
+            returnvalue.append((self.socketaddr_info_o_t.sin_address & 0xFF00) >> 16)
+            returnvalue.append((self.socketaddr_info_o_t.sin_address & 0xFF00) >> 8)
+            returnvalue.append(self.socketaddr_info_o_t.sin_address & 0xFF)
 
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_zero[0])
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_zero[1])
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_zero[2])
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_zero[3])
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_zero[4])
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_zero[5])
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_zero[6])
-            returnvalue.append(self.sockaddr_info_item_o_t.sin_zero[7])
+            returnvalue.append(self.socketaddr_info_o_t.sin_zero[0])
+            returnvalue.append(self.socketaddr_info_o_t.sin_zero[1])
+            returnvalue.append(self.socketaddr_info_o_t.sin_zero[2])
+            returnvalue.append(self.socketaddr_info_o_t.sin_zero[3])
+            returnvalue.append(self.socketaddr_info_o_t.sin_zero[4])
+            returnvalue.append(self.socketaddr_info_o_t.sin_zero[5])
+            returnvalue.append(self.socketaddr_info_o_t.sin_zero[6])
+            returnvalue.append(self.socketaddr_info_o_t.sin_zero[7])
 
         return returnvalue

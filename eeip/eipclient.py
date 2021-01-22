@@ -5,6 +5,7 @@ import struct
 import traceback
 from eeip import cip
 from enum import Enum, IntEnum
+import random
 
 class EEIPClient:
     def __init__(self):
@@ -13,8 +14,28 @@ class EEIPClient:
         self.__connection_id_o_t = 0
         self.__connection_id_t_o = 0
         self.multicast_address = 0
-        self.connection_serial_number = 0
+        self.__connection_serial_number = 0
         self.__receivedata = bytearray()
+        self.__o_t_realtime_format = RealTimeFormat.HEADER32BIT
+        self.__t_o_realtime_format = RealTimeFormat.MODELESS
+        self.__t_o_connection_type = ConnectionType.MULTICAST
+        self.__o_t_connection_type = ConnectionType.POINT_TO_POINT
+        self.__requested_packet_rate_o_t = 0x7A120 #500ms
+        self.__requested_packet_rate_t_o = 0x7A120 #500ms
+        self.__o_t_length = 505
+        self.__t_o_length = 505
+        self.__o_t_variable_length = True
+        self.__t_o_variable_length = True
+        self.__o_t_priority = Priority.SCHEDULED
+        self.__t_o_priority = Priority.SCHEDULED
+        self.__o_t_owner_redundant = True
+        self.__t_o_owner_redundant = True
+        self.__assembly_object_class = 0x04
+        self.__configuration_assembly_instance_id = 0x01
+        self.__o_t_instance_id = 0x64
+        self.__t_o_instance_id = 0x65
+        self.__originator_udp_port = 0x08AE
+        self.__target_udp_port = 0x08AE
 
         self.__udp_client_receive_closed = False
 
@@ -259,9 +280,9 @@ class EEIPClient:
     def forward_open(self, large_forward_open = False):
         self.__udp_client_receive_closed = False
         o_t_header_offset = 2
-        if (self.__o_t_header_offset == RealTimeFormat.HEADER32BIT):
+        if (self.__o_t_realtime_format == RealTimeFormat.HEADER32BIT):
             o_t_header_offset = 6
-        if (self.__o_t_header_offset == RealTimeFormat.HEARTBEAT):
+        if (self.__o_t_realtime_format == RealTimeFormat.HEARTBEAT):
             o_t_header_offset = 0
 
         t_o_header_offset = 2
@@ -270,7 +291,7 @@ class EEIPClient:
         if (self.__t_o_realtime_format == RealTimeFormat.HEARTBEAT):
             t_o_header_offset = 0
 
-        length_offset = 5 + 0 if self.__t_o_connection_type == ConnectionType.NULL else 2 + 0 if self.__o_t_connection_type == ConnectionType.NULL else 2
+        length_offset = 5 + (0 if self.__t_o_connection_type == ConnectionType.NULL else 2) + (0 if self.__o_t_connection_type == ConnectionType.NULL else 2)
 
         __encapsulation = encapsulation.Encapsulation()
         __encapsulation.session_handle = self.__session_handle
@@ -325,8 +346,173 @@ class EEIPClient:
         common_packet_format.data.append(0xfa)
         # ----------------Timeout Ticks - Table 3-5.16 (Vol. 1)
 
+        self.__connection_id_o_t = int(random.random() * 10000000)
+        self.__connection_id_t_o = int(random.random() * 10000000 + 1)
 
+        common_packet_format.data.append(self.__connection_id_o_t & 0xFF)
+        common_packet_format.data.append((self.__connection_id_o_t & 0xFF00) >> 8)
+        common_packet_format.data.append((self.__connection_id_o_t & 0xFF0000) >> 16)
+        common_packet_format.data.append((self.__connection_id_o_t & 0xFF000000) >> 24)
 
+        common_packet_format.data.append(self.__connection_id_t_o & 0xFF)
+        common_packet_format.data.append((self.__connection_id_t_o & 0xFF00) >> 8)
+        common_packet_format.data.append((self.__connection_id_t_o & 0xFF0000) >> 16)
+        common_packet_format.data.append((self.__connection_id_t_o & 0xFF000000) >> 24)
+
+        self.__connection_serial_number = int(random.random() * 1000 + 2)
+        common_packet_format.data.append(self.__connection_serial_number & 0xFF)
+        common_packet_format.data.append((self.__connection_serial_number & 0xFF00) >> 8)
+
+        # ----------------Originator Vendor ID
+        common_packet_format.data.append(0xFF)
+        common_packet_format.data.append(0)
+        # ----------------Originator Vendor ID
+
+        # ----------------Originator Serial Number
+        common_packet_format.data.append(0xFF)
+        common_packet_format.data.append(0xFF)
+        common_packet_format.data.append(0xFF)
+        common_packet_format.data.append(0xFF)
+        # ----------------Originator Serial Number
+
+        # ----------------Timeout Multiplier
+        common_packet_format.data.append(3)
+        # ----------------Timeout Multiplier
+
+        # ----------------Reserved
+        common_packet_format.data.append(0)
+        common_packet_format.data.append(0)
+        common_packet_format.data.append(0)
+        # ----------------Reserved
+
+        # ----------------Requested Packet Rate O->T in Microseconds
+        common_packet_format.data.append(self.__requested_packet_rate_o_t & 0xFF)
+        common_packet_format.data.append((self.__requested_packet_rate_o_t & 0xFF00) >> 8)
+        common_packet_format.data.append((self.__requested_packet_rate_o_t & 0xFF0000) >> 16)
+        common_packet_format.data.append((self.__requested_packet_rate_o_t & 0xFF000000) >> 24)
+        # ----------------Requested Packet Rate O->T in Microseconds
+
+        # ----------------O->T Network Connection Parameters
+        connection_size = self.__o_t_length + o_t_header_offset   #The maximum size in bytes og the data for each direction (were applicable) of the connection. For a variable -> maximum
+
+        # ----------------O->T Network Connection Parameters
+        network_connection_parameters = (connection_size & 0x1FF) | (self.__o_t_variable_length << 9) | ((self.__o_t_priority & 0x03) << 10) | ((self.__o_t_connection_type & 0x03) << 13) | (self.__o_t_owner_redundant << 15)
+        if large_forward_open:
+            network_connection_parameters = (connection_size & 0xFFFF) | (self.__o_t_variable_length << 25) | (
+                        (self.__o_t_priority & 0x03) << 26) | ((self.__o_t_connection_type & 0x03) << 29) | (
+                                                        self.__o_t_owner_redundant << 31)
+
+        common_packet_format.data.append(network_connection_parameters & 0xFF)
+        common_packet_format.data.append((network_connection_parameters & 0xFF00) >> 8)
+
+        if large_forward_open:
+            common_packet_format.data.append((network_connection_parameters & 0xFF0000) >> 16)
+            common_packet_format.data.append((network_connection_parameters & 0xFF000000) >> 14)
+        # ----------------O->T Network Connection Parameters
+
+        # ----------------Requested Packet Rate T->O in Microseconds
+        common_packet_format.data.append(self.__requested_packet_rate_t_o & 0xFF)
+        common_packet_format.data.append((self.__requested_packet_rate_t_o & 0xFF00) >> 8)
+        common_packet_format.data.append((self.__requested_packet_rate_t_o & 0xFF0000) >> 16)
+        common_packet_format.data.append((self.__requested_packet_rate_t_o & 0xFF000000) >> 24)
+        # ----------------Requested Packet Rate T->O in Microseconds
+
+        # ----------------T->O Network Connection Parameters
+        connection_size = self.__t_o_length + t_o_header_offset   #The maximum size in bytes og the data for each direction (were applicable) of the connection. For a variable -> maximum
+
+        network_connection_parameters = (connection_size & 0x1FF) | (self.__t_o_variable_length << 9) | ((self.__t_o_priority & 0x03) << 10) | ((self.__t_o_connection_type & 0x03) << 13) | (self.__t_o_owner_redundant << 15)
+        if large_forward_open:
+            network_connection_parameters = (connection_size & 0xFFFF) | (self.__t_o_variable_length << 25) | (
+                        (self.__t_o_priority & 0x03) << 26) | ((self.__t_o_connection_type & 0x03) << 29) | (
+                                                        self.__t_o_owner_redundant << 31)
+
+        common_packet_format.data.append(network_connection_parameters & 0xFF)
+        common_packet_format.data.append((network_connection_parameters & 0xFF00) >> 8)
+
+        if large_forward_open:
+            common_packet_format.data.append((network_connection_parameters & 0xFF0000) >> 16)
+            common_packet_format.data.append((network_connection_parameters & 0xFF000000) >> 14)
+        # ----------------T->O Network Connection Parameters
+
+        # ----------------Transport Type / Trigger commonPacketFormat.Data.Add(0x01);
+        # X - ------ = 0 = Client; 1 = Server
+        # -XXX - --- = Production Trigger, 0 = Cyclic, 1 = CoS, 2 = Application Object
+        # ----XXXX = Transport class , 0 = Class 0, 1 = Class 1, 2 = Class 2, 3 = Class 3
+        # ----------------Transport Type Trigger
+        common_packet_format.data.append(0x01)
+        # Connection Path size
+        common_packet_format.data.append(0x02 + (0 if self.__o_t_connection_type == ConnectionType.NULL else 1) + (0 if self.__t_o_connection_type == ConnectionType.NULL else 1))
+        # Verbindugspfad
+        common_packet_format.data.append(0x20)
+        common_packet_format.data.append(self.__assembly_object_class)
+        common_packet_format.data.append(0x24)
+        common_packet_format.data.append(self.__configuration_assembly_instance_id)
+        if self.__o_t_connection_type != ConnectionType.NULL:
+            common_packet_format.data.append(0x2C)
+            common_packet_format.data.append(self.__o_t_instance_id)
+        if self.__t_o_connection_type != ConnectionType.NULL:
+            common_packet_format.data.append(0x2C)
+            common_packet_format.data.append(self.__t_o_instance_id)
+
+        # AddSocket Addrress Item O->T
+        common_packet_format.socketaddr_info_o_t = encapsulation.SocketAddress()
+        common_packet_format.socketaddr_info_o_t.sin_port = self.__originator_udp_port
+        common_packet_format.socketaddr_info_o_t.sin_family = 2
+
+        if self.__o_t_connection_type == ConnectionType.MULTICAST:
+            multicast_response_address = self.get_multicast_address(self.ip2int(self.__ip_address))
+
+            common_packet_format.socketaddr_info_o_t.sin_address = multicast_response_address
+            self.__multicastAddress = common_packet_format.socketaddr_info_o_t.sin_address
+        else:
+            common_packet_format.socketaddr_info_o_t.sin_address = 0
+
+        __encapsulation.length = len(common_packet_format.to_bytes()) + 6
+
+        data_to_write = __encapsulation.to_bytes() + common_packet_format.to_bytes()
+
+        self.__receivedata = bytearray()
+        self.__tcpClient_socket.send(bytearray(data_to_write))
+
+        try:
+            while len(self.__receivedata) == 0:
+                pass
+        except Exception:
+            raise Exception('Read Timeout')
+
+        # --------------------------BEGIN Error?
+        if len(self.__receivedata) > 41:
+            if self.__receivedata[42] != 0:  # Exception codes see "Table B-1.1 CIP General Status Codes"
+                if self.__receivedata[42] == 1:
+                    if self.__receivedata[43] == 0:
+
+                        raise cip.CIPException(("Connection failure, General Status Code: " + str(self.__receivedata[42])))
+                    else: #TODO Error Code from Connection Manager Object
+                        raise cip.CIPException(("Connection failure, General Status Code: " + str(self.__receivedata[42]) + " Additional Status Code: " + str(self.__receivedata[44] | (self.__receivedata[45] << 8))))
+                else:
+                    raise cip.CIPException(cip.get_status_code(self.__receivedata[42]))
+        # --------------------------END Error?
+        item_count = self.__receivedata[30] + (self.__receivedata[31] << 8)
+        length_unconnected_data_item = self.__receivedata[38] + (self.__receivedata[39] << 8)
+        self.__connection_id_o_t = self.__receivedata[44] + (self.__receivedata[45] << 8) + (self.__receivedata[46] << 16) + (self.__receivedata[47] << 24)
+        self.__connection_id_o_t = self.__receivedata[48] + (self.__receivedata[49] << 8) + (
+                    self.__receivedata[50] << 16) + (self.__receivedata[51] << 24)
+
+        #Is there a SocketInfoItem?
+        number_of_current_item = 0
+        socket_info_item = encapsulation.SocketAddress()
+        while item_count > 2:
+            type_id = self.__receivedata[40 + length_unconnected_data_item + 20 * number_of_current_item] + (self.__receivedata[40 + length_unconnected_data_item + 20 * number_of_current_item] << 8)
+            if type_id == 0x8001:
+                socket_info_item = encapsulation.SocketAddress()
+                socket_info_item.sin_address = self.__receivedata[40 + length_unconnected_data_item + 8 + 20 * number_of_current_item] + (self.__receivedata[40 + length_unconnected_data_item + 9 + 20 * number_of_current_item] << 8) + (self.__receivedata[40 + length_unconnected_data_item + 10 + 20 * number_of_current_item] << 16) + (self.__receivedata[40 + length_unconnected_data_item + 11 + 20 * number_of_current_item] << 24)
+                socket_info_item.sin_port = self.__receivedata[40 + length_unconnected_data_item + 7 + 20 * number_of_current_item] + (self.__receivedata[40 + length_unconnected_data_item + 6 + 20 * number_of_current_item] << 8)
+                if self.__t_o_connection_type == ConnectionType.MULTICAST:
+                    self.__multicastAddress = socket_info_item.sin_address
+                self.__target_udp_port = socket_info_item.sin_port
+            number_of_current_item = number_of_current_item + 1
+            item_count = item_count - 1
+            
 
     def __listen(self):
         self.__stoplistening = False
@@ -392,6 +578,31 @@ class EEIPClient:
                 returnvalue.append(attribute_id & 0x00FF)
                 returnvalue.append((attribute_id & 0xFF00) >> 8)
         return returnvalue
+
+
+    def ip2int(addr):
+        return struct.unpack("!I", socket.inet_aton(addr))[0]
+
+    def get_multicast_address (device_ip_address):
+        cip_mcast_base_addr = 0xEFC00100
+        cip_host_mask = 0x3FF
+        netmask = 0
+
+        #Class A Network?
+        if device_ip_address <= 0x7FFFFFFF:
+            netmask = 0xFF000000
+        #Class B Network?
+        if device_ip_address >= 0x80000000 and device_ip_address <= 0xBFFFFFFF:
+            netmask = 0xFFFF0000
+        #Class C Network?
+        if device_ip_address >= 0xC0000000 and device_ip_address <= 0xDFFFFFFF:
+            netmask = 0xFFFFFF00
+
+        host_id = device_ip_address & ~netmask
+        mcast_index = host_id - 1
+        mcast_index = mcast_index & cip_host_mask
+
+        return (cip_mcast_base_addr + mcast_index*32)
 
     @property
     def tcp_port(self):
@@ -786,8 +997,11 @@ class RealTimeFormat(IntEnum):
 if __name__ == "__main__":
     eeipclient = EEIPClient()
     eeipclient.register_session('192.168.193.112')
+    eeipclient.o_t_length = 1
+    eeipclient.t_o_length = 8
+    eeipclient.forward_open()
     print(eeipclient.get_attribute_single(4,0x64,3))
-    eeipclient.set_attribute_single(4,0x64,3,[1])
+    #eeipclient.set_attribute_single(4,0x64,3,[1])
     #print(eeipclient.get_attributes_all(1, 1))
 
     eeipclient.unregister_session()

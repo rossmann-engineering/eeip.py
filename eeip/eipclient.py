@@ -6,7 +6,8 @@ import traceback
 from eeip import cip
 from enum import Enum, IntEnum
 import random
-import time
+import time, datetime
+
 
 class EEIPClient:
     def __init__(self):
@@ -40,6 +41,7 @@ class EEIPClient:
         self.__o_t_iodata = 256 * [0]
         self.__t_o_iodata = 256 * [0]
         self.__multicastAddress = 0
+        self.__lock_receive_data = threading.Lock()
 
 
         self.__udp_client_receive_closed = False
@@ -526,8 +528,10 @@ class EEIPClient:
             group = socket.inet_aton(mc_address)
             mreq = struct.pack('=4sL', group, socket.INADDR_ANY)
             self.__udp_server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-        self.__udp_thread = threading.Thread(target=self.__udp_listen, args=())
-        self.__udp_thread.start()
+        self.__udp_recv_thread = threading.Thread(target=self.__udp_listen, args=())
+        self.__udp_recv_thread.start()
+        self.__udp_send_thread = threading.Thread(target=self.__send_udp, args=())
+        self.__udp_send_thread.start()
         self.__send_udp()
 
 
@@ -542,7 +546,24 @@ class EEIPClient:
                 address = bytesAddressPair[1]
                 __receivedata_udp = message
                 print (message)
+                if len(__receivedata_udp) > 20:
+                    connection_id = __receivedata_udp[6] + (__receivedata_udp[7] << 8) + (__receivedata_udp[8] << 16) + (__receivedata_udp[9] << 24)
+                if connection_id == self.__connection_id_t_o:
+                    header_offset = 0
+                    if self.__t_o_realtime_format == RealTimeFormat.HEADER32BIT:
+                        header_offset = 4
+                    self.__lock_receive_data.acquire()
+                    self.__t_o_iodata = list()
+                    for i in range(0, len(__receivedata_udp)-20-header_offset):
+                        self.__t_o_iodata.append(__receivedata_udp[20+i+header_offset])
+                    self.__lock_receive_data.release()
+                    self.__last_received_implicit_message = datetime.datetime.utcnow()
+                    print(self.__t_o_iodata)
+
         except Exception:
+            if self.__lock_receive_data.locked():
+                self.__lock_receive_data.release()
+
             self.__receivedata = bytearray()
 
     def __send_udp(self):
@@ -608,8 +629,8 @@ class EEIPClient:
                 message.append(0)
                 message.append(0)
                 message.append(0)
-            self.o_t_iodata[0] = self.o_t_iodata[0]  + 1
             # -------------------write data
+            self.o_t_iodata[0] = self.o_t_iodata[0] + 1
             for i in range(0, self.__o_t_length):
                 message.append(self.o_t_iodata[i])
             # -------------------write data
@@ -618,7 +639,7 @@ class EEIPClient:
                                  socket.SOCK_DGRAM)  # UDP
 
             self.__udp_server_socket.sendto(bytearray(message), (self.__ip_address, self.__target_udp_port))
-            time.sleep(0.5)
+            time.sleep(self.__requested_packet_rate_o_t/1000000)
 
 
     def __listen(self):
@@ -1016,7 +1037,9 @@ class EEIPClient:
         """
         Provides Access to the Class 1 Real-Time IO-Data Target -> Originator for Implicit Messaging
         """
+        self.__lock_receive_data.acquire()
         self.__t_o_iodata = t_o_iodata
+        self.__lock_receive_data.release()
 
     @property
     def o_t_realtime_format(self):

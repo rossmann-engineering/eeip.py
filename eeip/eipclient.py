@@ -529,10 +529,131 @@ class EEIPClient:
             mreq = struct.pack('=4sL', group, socket.INADDR_ANY)
             self.__udp_server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
         self.__udp_recv_thread = threading.Thread(target=self.__udp_listen, args=())
+        self.__udp_recv_thread.daemon = True
         self.__udp_recv_thread.start()
         self.__udp_send_thread = threading.Thread(target=self.__send_udp, args=())
+        self.__udp_send_thread.daemon = True
         self.__udp_send_thread.start()
-        self.__send_udp()
+
+
+    def forward_close(self):
+
+        length_offset = 5 + (0 if self.__t_o_connection_type == ConnectionType.NULL else 2) + (0 if self.__o_t_connection_type == ConnectionType.NULL else 2)
+
+        __encapsulation = encapsulation.Encapsulation()
+        __encapsulation.session_handle = self.__session_handle
+        __encapsulation.command = encapsulation.CommandsEnum.SEND_RRDATA
+        __encapsulation.length = 16 + 17 + length_offset
+
+        # ---------------Interface Handle CIP
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        # ----------------Interface Handle CIP
+
+        # ----------------Timeout
+        __encapsulation.command_specific_data.append(0)
+        __encapsulation.command_specific_data.append(0)
+        # ----------------Timeout
+
+        # Common Packet Format (Table 2-6.1)
+        common_packet_format = encapsulation.CommonPacketFormat()
+        common_packet_format.item_count = 0x02
+
+        common_packet_format.address_item = 0
+        common_packet_format.address_length = 0
+
+        common_packet_format.data_item = 0xB2
+        common_packet_format.data_length = 17 + length_offset
+
+        # ----------------CIP Command "Forward Close"
+        common_packet_format.data.append(0x4E)
+        # ----------------CIP Command "Forward Close"
+
+        # ----------------Requested Path size
+        common_packet_format.data.append(2)
+        # ----------------Requested Path size
+
+        # ----------------Path segment for Class ID
+        common_packet_format.data.append(0x20)
+        common_packet_format.data.append(6)
+        # ----------------Path segment for Class ID
+
+        # ----------------Path segment for Instance ID
+        common_packet_format.data.append(0x24)
+        common_packet_format.data.append(1)
+        # ----------------Path segment for Instance ID
+
+        # ----------------Priority and Time/Tick - Table  3-5.16 (Vol. 1)
+        common_packet_format.data.append(0x03)
+        # ----------------Priority and Time/Tick - Table  3-5.16 (Vol. 1)
+
+        # ----------------Timeout Ticks - Table 3-5.16 (Vol. 1)
+        common_packet_format.data.append(0xFA)
+        # ----------------Timeout Ticks - Table  3-5.16 (Vol. 1)
+
+        # ----------------Connection serial number
+        common_packet_format.data.append(self.__connection_serial_number & 0xFF)
+        common_packet_format.data.append((self.__connection_serial_number & 0xFF00) >> 8)
+        # ----------------Connection serial number
+
+        # ----------------Originator Vendor ID
+        common_packet_format.data.append(0xFF)
+        common_packet_format.data.append(0)
+        # ----------------Originator Vendor ID
+
+        # ----------------Originator Serial Number
+        common_packet_format.data.append(0xFF)
+        common_packet_format.data.append(0xFF)
+        common_packet_format.data.append(0xFF)
+        common_packet_format.data.append(0xFF)
+        # ----------------Originator Serial Number
+
+        # Connection Path size
+        common_packet_format.data.append(0x02 + (0 if self.__o_t_connection_type == ConnectionType.NULL else 1) + (
+            0 if self.__t_o_connection_type == ConnectionType.NULL else 1))
+
+        # ----------------Reserved
+        common_packet_format.data.append(0x0)
+        # ----------------Reserved
+
+        # Verbindugspfad
+        common_packet_format.data.append(0x20)
+        common_packet_format.data.append(self.__assembly_object_class)
+        common_packet_format.data.append(0x24)
+        common_packet_format.data.append(self.__configuration_assembly_instance_id)
+        if self.__o_t_connection_type != ConnectionType.NULL:
+            common_packet_format.data.append(0x2C)
+            common_packet_format.data.append(self.__o_t_instance_id)
+        if self.__t_o_connection_type != ConnectionType.NULL:
+            common_packet_format.data.append(0x2C)
+            common_packet_format.data.append(self.__t_o_instance_id)
+        try:
+            data_to_write = __encapsulation.to_bytes() + common_packet_format.to_bytes()
+            self.__receivedata = bytearray()
+            self.__tcpClient_socket.send(bytearray(data_to_write))
+        except Exception:       #Handle exception to allow to close the connection if closed from the target before
+            pass
+
+
+
+
+        try:
+            while len(self.__receivedata) == 0:
+                pass
+        except Exception:
+            raise Exception('Read Timeout')
+
+        # --------------------------BEGIN Error?
+        if len(self.__receivedata) > 41:
+            if self.__receivedata[42] != 0:  # Exception codes see "Table B-1.1 CIP General Status Codes"
+                raise cip.CIPException(cip.get_status_code(self.__receivedata[42]))
+        # --------------------------END Error?
+
+        self.__stoplistening_udp = True
+        self.__stoplistening = True
+
 
 
 
@@ -1133,9 +1254,10 @@ if __name__ == "__main__":
     eeipclient.o_t_length = 1
     eeipclient.t_o_length = 8
     eeipclient.forward_open()
-    print(eeipclient.get_attribute_single(4,0x64,3))
+    #print(eeipclient.get_attribute_single(4,0x64,3))
     #eeipclient.set_attribute_single(4,0x64,3,[1])
     #print(eeipclient.get_attributes_all(1, 1))
-
+    time.sleep(5)
+    eeipclient.forward_close()
     eeipclient.unregister_session()
 

@@ -6,6 +6,7 @@ import traceback
 from eeip import cip
 from enum import Enum, IntEnum
 import random
+import time
 
 class EEIPClient:
     def __init__(self):
@@ -36,6 +37,10 @@ class EEIPClient:
         self.__t_o_instance_id = 0x65
         self.__originator_udp_port = 0x08AE
         self.__target_udp_port = 0x08AE
+        self.__o_t_iodata = 256 * [0]
+        self.__t_o_iodata = 256 * [0]
+        self.__multicastAddress = 0
+
 
         self.__udp_client_receive_closed = False
 
@@ -495,24 +500,126 @@ class EEIPClient:
         item_count = self.__receivedata[30] + (self.__receivedata[31] << 8)
         length_unconnected_data_item = self.__receivedata[38] + (self.__receivedata[39] << 8)
         self.__connection_id_o_t = self.__receivedata[44] + (self.__receivedata[45] << 8) + (self.__receivedata[46] << 16) + (self.__receivedata[47] << 24)
-        self.__connection_id_o_t = self.__receivedata[48] + (self.__receivedata[49] << 8) + (
+        self.__connection_id_t_o = self.__receivedata[48] + (self.__receivedata[49] << 8) + (
                     self.__receivedata[50] << 16) + (self.__receivedata[51] << 24)
 
         #Is there a SocketInfoItem?
         number_of_current_item = 0
         socket_info_item = encapsulation.SocketAddress()
         while item_count > 2:
-            type_id = self.__receivedata[40 + length_unconnected_data_item + 20 * number_of_current_item] + (self.__receivedata[40 + length_unconnected_data_item + 20 * number_of_current_item] << 8)
+            type_id = self.__receivedata[40 + length_unconnected_data_item + 20 * number_of_current_item] + (self.__receivedata[40 + length_unconnected_data_item + 21 * number_of_current_item] << 8)
             if type_id == 0x8001:
                 socket_info_item = encapsulation.SocketAddress()
-                socket_info_item.sin_address = self.__receivedata[40 + length_unconnected_data_item + 8 + 20 * number_of_current_item] + (self.__receivedata[40 + length_unconnected_data_item + 9 + 20 * number_of_current_item] << 8) + (self.__receivedata[40 + length_unconnected_data_item + 10 + 20 * number_of_current_item] << 16) + (self.__receivedata[40 + length_unconnected_data_item + 11 + 20 * number_of_current_item] << 24)
+                socket_info_item.sin_address = self.__receivedata[40 + length_unconnected_data_item + 11 + 20 * number_of_current_item] + (self.__receivedata[40 + length_unconnected_data_item + 10 + 20 * number_of_current_item] << 8) + (self.__receivedata[40 + length_unconnected_data_item + 9 + 20 * number_of_current_item] << 16) + (self.__receivedata[40 + length_unconnected_data_item + 8 + 20 * number_of_current_item] << 24)
                 socket_info_item.sin_port = self.__receivedata[40 + length_unconnected_data_item + 7 + 20 * number_of_current_item] + (self.__receivedata[40 + length_unconnected_data_item + 6 + 20 * number_of_current_item] << 8)
                 if self.__t_o_connection_type == ConnectionType.MULTICAST:
                     self.__multicastAddress = socket_info_item.sin_address
                 self.__target_udp_port = socket_info_item.sin_port
             number_of_current_item = number_of_current_item + 1
             item_count = item_count - 1
-            
+
+        self.__udp_server_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        #self.__udp_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.__udp_server_socket.bind(('', self.__originator_udp_port))
+        if self.__t_o_connection_type == ConnectionType.MULTICAST:
+            mc_address = self.int2ip(self.__multicastAddress)
+            group = socket.inet_aton(mc_address)
+            mreq = struct.pack('=4sL', group, socket.INADDR_ANY)
+            self.__udp_server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        self.__udp_thread = threading.Thread(target=self.__udp_listen, args=())
+        self.__udp_thread.start()
+        self.__send_udp()
+
+
+
+    def __udp_listen(self):
+        self.__stoplistening_udp = False
+        self.__receivedata_udp = bytearray()
+        try:
+            while not self.__stoplistening_udp:
+                bytesAddressPair = self.__udp_server_socket.recvfrom(564)
+                message = bytesAddressPair[0]
+                address = bytesAddressPair[1]
+                __receivedata_udp = message
+                print (message)
+        except Exception:
+            self.__receivedata = bytearray()
+
+    def __send_udp(self):
+        sequence_count = 0
+        sequence = 0
+        while not self.__stoplistening_udp:
+            message = list()
+
+            #-------------------Item Count
+            message.append(2)
+            message.append(0)
+            # -------------------Item Count
+
+            # -------------------Type ID
+            message.append(0x02)
+            message.append(0x80)
+            # -------------------Type ID
+
+            # -------------------Length
+            message.append(0x08)
+            message.append(0x00)
+            # -------------------Length
+
+            # -------------------Connection ID
+            message.append(self.__connection_id_o_t & 0xFF)
+            message.append((self.__connection_id_o_t & 0xFF00) >> 8)
+            message.append((self.__connection_id_o_t & 0xFF0000) >> 16)
+            message.append((self.__connection_id_o_t & 0xFF000000) >> 24)
+            # -------------------Connection ID
+
+            # -------------------sequence count
+            sequence_count += 1
+            message.append(sequence_count & 0xFF)
+            message.append((sequence_count & 0xFF00) >> 8)
+            message.append((sequence_count & 0xFF0000) >> 16)
+            message.append((sequence_count & 0xFF000000) >> 24)
+            # -------------------sequence count
+
+            # -------------------Type ID
+            message.append(0xB1)
+            message.append(0x00)
+            # -------------------Type ID
+
+            header_offset = 0
+            if self.__o_t_realtime_format  == RealTimeFormat.HEADER32BIT:
+                header_offset = 4
+            o_t_length = self.__o_t_length + header_offset + 2
+
+            # -------------------Length
+            message.append(o_t_length & 0xFF)
+            message.append((o_t_length & 0xFF00) >> 8)
+            # -------------------Length
+
+            # -------------------Sequence count
+            sequence += sequence
+            if self.__o_t_realtime_format != RealTimeFormat.HEARTBEAT:
+                message.append(sequence & 0xFF)
+                message.append((sequence & 0xFF00) >> 8)
+            # -------------------Sequence count
+
+            if self.__o_t_realtime_format == RealTimeFormat.HEADER32BIT:
+                message.append(1)
+                message.append(0)
+                message.append(0)
+                message.append(0)
+            self.o_t_iodata[0] = self.o_t_iodata[0]  + 1
+            # -------------------write data
+            for i in range(0, self.__o_t_length):
+                message.append(self.o_t_iodata[i])
+            # -------------------write data
+
+            sock = socket.socket(socket.AF_INET,  # Internet
+                                 socket.SOCK_DGRAM)  # UDP
+
+            self.__udp_server_socket.sendto(bytearray(message), (self.__ip_address, self.__target_udp_port))
+            time.sleep(0.5)
+
 
     def __listen(self):
         self.__stoplistening = False
@@ -582,6 +689,9 @@ class EEIPClient:
 
     def ip2int(addr):
         return struct.unpack("!I", socket.inet_aton(addr))[0]
+
+    def int2ip(self, addr):
+        return socket.inet_ntoa(struct.pack("!I", addr))
 
     def get_multicast_address (device_ip_address):
         cip_mcast_base_addr = 0xEFC00100
@@ -996,7 +1106,7 @@ class RealTimeFormat(IntEnum):
 
 if __name__ == "__main__":
     eeipclient = EEIPClient()
-    eeipclient.register_session('192.168.193.112')
+    eeipclient.register_session('192.168.178.52')
     eeipclient.o_t_length = 1
     eeipclient.t_o_length = 8
     eeipclient.forward_open()

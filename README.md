@@ -9,7 +9,9 @@
 Visit www.eeip-library.de for more informations and Codesamples
 
 ### Table of Contents
-1. [Installation](#installation)
+1. [Installation](#installation)  
+2. [Explicit Messaging](#explicitmessaging)  
+	2.1.	[Supported Common Services](#supportedcommonservices)  
 
 <div id="installation"/>
 

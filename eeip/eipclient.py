@@ -42,6 +42,7 @@ class EEIPClient:
         self.__t_o_iodata = 256 * [0]
         self.__multicastAddress = 0
         self.__lock_receive_data = threading.Lock()
+        self.__last_received_implicit_message = 0
 
 
         self.__udp_client_receive_closed = False
@@ -521,7 +522,7 @@ class EEIPClient:
             item_count = item_count - 1
 
         self.__udp_server_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        #self.__udp_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.__udp_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.__udp_server_socket.bind(('', self.__originator_udp_port))
         if self.__t_o_connection_type == ConnectionType.MULTICAST:
             mc_address = self.int2ip(self.__multicastAddress)
@@ -653,6 +654,8 @@ class EEIPClient:
 
         self.__stoplistening_udp = True
         self.__stoplistening = True
+
+        self.__udp_server_socket.close()
 
 
 
@@ -1250,6 +1253,17 @@ class RealTimeFormat(IntEnum):
 
 if __name__ == "__main__":
     eeipclient = EEIPClient()
+    eeipclient.register_session('192.168.178.52')
+    eeipclient.o_t_length = 1
+    eeipclient.t_o_length = 8
+    eeipclient.forward_open()
+    #print(eeipclient.get_attribute_single(4,0x64,3))
+    #eeipclient.set_attribute_single(4,0x64,3,[1])
+    #print(eeipclient.get_attributes_all(1, 1))
+    time.sleep(5)
+    eeipclient.forward_close()
+    eeipclient.unregister_session()
+    time.sleep(1)
     eeipclient.register_session('192.168.178.52')
     eeipclient.o_t_length = 1
     eeipclient.t_o_length = 8

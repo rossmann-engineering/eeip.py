@@ -675,7 +675,7 @@ class EEIPClient:
                 message = bytesAddressPair[0]
                 address = bytesAddressPair[1]
                 __receivedata_udp = message
-                print (message)
+                #print (message)
                 if len(__receivedata_udp) > 20:
                     connection_id = __receivedata_udp[6] + (__receivedata_udp[7] << 8) + (__receivedata_udp[8] << 16) + (__receivedata_udp[9] << 24)
                 if connection_id == self.__connection_id_t_o:
@@ -688,7 +688,7 @@ class EEIPClient:
                         self.__t_o_iodata.append(__receivedata_udp[20+i+header_offset])
                     self.__lock_receive_data.release()
                     self.__last_received_implicit_message = datetime.datetime.utcnow()
-                    print(self.__t_o_iodata)
+                    #(self.__t_o_iodata)
 
         except Exception:
             if self.__lock_receive_data.locked():
@@ -760,7 +760,7 @@ class EEIPClient:
                 message.append(0)
                 message.append(0)
             # -------------------write data
-            self.o_t_iodata[0] = self.o_t_iodata[0] + 1
+            #self.o_t_iodata[0] = self.o_t_iodata[0] + 1
             for i in range(0, self.__o_t_length):
                 message.append(self.o_t_iodata[i])
             # -------------------write data
@@ -769,7 +769,7 @@ class EEIPClient:
                                  socket.SOCK_DGRAM)  # UDP
 
             self.__udp_server_socket.sendto(bytearray(message), (self.__ip_address, self.__target_udp_port))
-            time.sleep(self.__requested_packet_rate_o_t/1000000)
+            time.sleep(float(self.__requested_packet_rate_o_t)/1000000.0)
 
 
     def __listen(self):
@@ -782,7 +782,7 @@ class EEIPClient:
                     self.__timeout = 500
                     if self.__tcpClient_socket is not None:
                         self.__receivedata = self.__tcpClient_socket.recv(255)
-                        print (self.__receivedata)
+                        #print (self.__receivedata)
         except socket.timeout:
             self.__receivedata = bytearray()
 
@@ -838,13 +838,13 @@ class EEIPClient:
         return returnvalue
 
 
-    def ip2int(addr):
+    def ip2int(self, addr):
         return struct.unpack("!I", socket.inet_aton(addr))[0]
 
     def int2ip(self, addr):
         return socket.inet_ntoa(struct.pack("!I", addr))
 
-    def get_multicast_address (device_ip_address):
+    def get_multicast_address (self, device_ip_address):
         cip_mcast_base_addr = 0xEFC00100
         cip_host_mask = 0x3FF
         netmask = 0
@@ -922,28 +922,28 @@ class EEIPClient:
         self.__ip_address = ip_address
 
     @property
-    def requested_packet_rate_o_t(self):
+    def o_t_requested_packet_rate(self):
         """
         Requested Packet Rate (RPI) in ms Originator -> Target for implicit messaging (Default 0x7A120 -> 500ms)
         """
         return self.__requested_packet_rate_o_t
 
-    @requested_packet_rate_o_t.setter
-    def requested_packet_rate_o_t(self, requested_packet_rate_o_t):
+    @o_t_requested_packet_rate.setter
+    def o_t_requested_packet_rate(self, requested_packet_rate_o_t):
         """
         Requested Packet Rate (RPI) in ms Originator -> Target for implicit messaging (Default 0x7A120 -> 500ms)
         """
         self.__requested_packet_rate_o_t = requested_packet_rate_o_t
 
     @property
-    def requested_packet_rate_t_o(self):
+    def t_o_requested_packet_rate(self):
         """
         Requested Packet Rate (RPI) in ms Target -> Originator for implicit messaging (Default 0x7A120 -> 500ms)
         """
         return self.__requested_packet_rate_t_o
 
-    @requested_packet_rate_t_o.setter
-    def requested_packet_rate_t_o(self, requested_packet_rate_t_o):
+    @t_o_requested_packet_rate.setter
+    def t_o_requested_packet_rate(self, requested_packet_rate_t_o):
         """
         Requested Packet Rate (RPI) in ms Target -> Originator for implicit messaging (Default 0x7A120 -> 500ms)
         """
@@ -1259,25 +1259,49 @@ class RealTimeFormat(IntEnum):
 
 if __name__ == "__main__":
     eeipclient = EEIPClient()
-    eeipclient.register_session('192.168.178.52')
-    eeipclient.o_t_length = 1
-    eeipclient.t_o_length = 8
+    eeipclient.register_session('192.168.178.107')
+    eeipclient.o_t_instance_id = 0x64
+    eeipclient.o_t_length = 4
+    eeipclient.requested_packet_rate_o_t = 100000
+    eeipclient.o_t_realtime_format = RealTimeFormat.HEADER32BIT
+    eeipclient.o_t_owner_redundant = False
+    eeipclient.o_t_variable_length = False
+    eeipclient.o_t_connection_type = ConnectionType.POINT_TO_POINT
+
+    eeipclient.t_o_instance_id = 0x65
+    eeipclient.t_o_length = 16
+    eeipclient.requested_packet_rate_t_o = 100000
+    eeipclient.t_o_realtime_format = RealTimeFormat.MODELESS
+    eeipclient.t_o_owner_redundant = False
+    eeipclient.t_o_variable_length = False
+    eeipclient.t_o_connection_type = ConnectionType.MULTICAST
+
     eeipclient.forward_open()
+
+    time.sleep(50)
+    eeipclient.forward_close()
+    eeipclient.unregister_session()
+
+    #eeipclient = EEIPClient()
+    #eeipclient.register_session('192.168.178.52')
+    #eeipclient.o_t_length = 1
+    #eeipclient.t_o_length = 8
+    #eeipclient.forward_open()
     #print(eeipclient.get_attribute_single(4,0x64,3))
     #eeipclient.set_attribute_single(4,0x64,3,[1])
     #print(eeipclient.get_attributes_all(1, 1))
-    time.sleep(5)
-    eeipclient.forward_close()
-    eeipclient.unregister_session()
-    time.sleep(1)
-    eeipclient.register_session('192.168.178.52')
-    eeipclient.o_t_length = 1
-    eeipclient.t_o_length = 8
-    eeipclient.forward_open()
+    #time.sleep(5)
+    #eeipclient.forward_close()
+    #eeipclient.unregister_session()
+    #time.sleep(1)
+    #eeipclient.register_session('192.168.178.52')
+    #eeipclient.o_t_length = 1
+    #eeipclient.t_o_length = 8
+    #eeipclient.forward_open()
     #print(eeipclient.get_attribute_single(4,0x64,3))
     #eeipclient.set_attribute_single(4,0x64,3,[1])
     #print(eeipclient.get_attributes_all(1, 1))
-    time.sleep(5)
-    eeipclient.forward_close()
-    eeipclient.unregister_session()
+    #time.sleep(5)
+    #eeipclient.forward_close()
+    #eeipclient.unregister_session()
 

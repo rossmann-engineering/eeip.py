@@ -286,6 +286,13 @@ class EEIPClient:
         return returnvalue
 
     def forward_open(self, large_forward_open = False):
+        """
+        The Forward Open Service (Service Code 0x54 and Large_Forward_Open service (Service
+        Code 0x5B) are used to establish a Connection with a Target Device.
+        The maximum data size for Forward open is 511 bytes, and 65535 for large forward open
+        Two independent Threads are opened to send and receive data via UDP (Implicit Messaging)
+        :param large_forward_open: Use Service code 0x58 (Large_Forward_Open) if true, otherwise 0x54 (Forward_Open)
+        """
         self.__udp_client_receive_closed = False
         o_t_header_offset = 2
         if (self.__o_t_realtime_format == RealTimeFormat.HEADER32BIT):
@@ -538,7 +545,9 @@ class EEIPClient:
 
 
     def forward_close(self):
-
+        """
+        Closes a connection (Service code 0x4E)
+        """
         length_offset = 5 + (0 if self.__t_o_connection_type == ConnectionType.NULL else 2) + (0 if self.__o_t_connection_type == ConnectionType.NULL else 2)
 
         __encapsulation = encapsulation.Encapsulation()
@@ -656,9 +665,6 @@ class EEIPClient:
         self.__stoplistening = True
 
         self.__udp_server_socket.close()
-
-
-
 
     def __udp_listen(self):
         self.__stoplistening_udp = False

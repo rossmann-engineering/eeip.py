@@ -43,6 +43,7 @@ class EEIPClient:
         self.__multicastAddress = 0
         self.__lock_receive_data = threading.Lock()
         self.__last_received_implicit_message = 0
+        self.__tcp_port = 0xAF12
 
 
         self.__udp_client_receive_closed = False
@@ -889,21 +890,21 @@ class EEIPClient:
     @target_udp_port.setter
     def target_udp_port(self, target_udp_port):
         """
-        UDP-Port of the IO-Adapter - Standard is 0xAF12
+        UDP-Port of the IO-Adapter - Standard is 0x08AE
         """
         self.__target_udp_port = target_udp_port
 
     @property
     def originator_udp_port(self):
         """
-        UDP-Port of the Scanner - Standard is 0xAF12
+        UDP-Port of the Scanner - Standard is 0x08AE
         """
         return self.__originator_udp_port
 
     @originator_udp_port.setter
     def originator_udp_port(self, originator_udp_port):
         """
-        UDP-Port of the Scanner - Standard is 0xAF12
+        UDP-Port of the Scanner - Standard is 0x08AE
         """
         self.__originator_udp_port = originator_udp_port
 
@@ -1053,21 +1054,23 @@ class EEIPClient:
     @property
     def o_t_connection_type(self):
         """
-        Connection Type Target -> Originator for Implicit Messaging (Default: ConnectionType.Multicast)
+        Connection Type Originator -> Target for Implicit Messaging (Default: ConnectionType.MULTICAST)
+        Could be: ConnectionType.NULL, ConnectionType.MULTICAST, ConnectionType.POINT_TO_POINT
         """
         return self.__o_t_connection_type
 
     @o_t_connection_type.setter
     def o_t_connection_type(self, o_t_connection_type):
         """
-        Connection Type Target -> Originator for Implicit Messaging (Default: ConnectionType.Multicast)
+        Connection Type Originator -> Target for Implicit Messaging (Default: ConnectionType.MULTICAST)
+
         """
         self.__o_t_connection_type = o_t_connection_type
 
     @property
     def t_o_connection_type(self):
         """
-        Priority Originator -> Target for Implicit Messaging (Default: Priority.Scheduled)
+        Priority Target -> Originator for Implicit Messaging (Default: Priority.Scheduled)
         Could be: Priority.Scheduled; Priority.High; Priority.Low; Priority.Urgent
         """
         return self.__t_o_connection_type
@@ -1075,7 +1078,7 @@ class EEIPClient:
     @t_o_connection_type.setter
     def t_o_connection_type(self, t_o_connection_type):
         """
-        Priority Originator -> Target for Implicit Messaging (Default: Priority.Scheduled)
+        Priority Target -> Originator for Implicit Messaging (Default: Priority.Scheduled)
         Could be: Priority.Scheduled; Priority.High; Priority.Low; Priority.Urgent
         """
         self.__t_o_connection_type = t_o_connection_type
@@ -1083,32 +1086,32 @@ class EEIPClient:
     @property
     def o_t_priority(self):
         """
-        Priority Originator -> Target for Implicit Messaging (Default: Priority.Scheduled)
-        Could be: Priority.Scheduled; Priority.High; Priority.Low; Priority.Urgent
+        Priority Originator -> Target for Implicit Messaging (Default: Priority.SCHEDULED)
+        Could be: Priority.SCHEDULED; Priority.HIGH; Priority.LOW; Priority.URGENT
         """
         return self.__o_t_priority
 
     @o_t_priority.setter
     def o_t_priority(self, o_t_priority):
         """
-        Priority Originator -> Target for Implicit Messaging (Default: Priority.Scheduled)
-        Could be: Priority.Scheduled; Priority.High; Priority.Low; Priority.Urgent
+        Priority Originator -> Target for Implicit Messaging (Default: Priority.SCHEDULED)
+        Could be: Priority.SCHEDULED; Priority.HIGH; Priority.LOW; Priority.URGENT
         """
         self.__o_t_priority = o_t_priority
 
     @property
     def t_o_priority(self):
         """
-        Priority Target -> Originator for Implicit Messaging (Default: Priority.Scheduled)
-        Could be: Priority.Scheduled; Priority.High; Priority.Low; Priority.Urgent
+        Priority Target -> Originator for Implicit Messaging (Default: Priority.SCHEDULED)
+        Could be: Priority.SCHEDULED; Priority.HIGH; Priority.LOW; Priority.URGENT
         """
         return self.__t_o_priority
 
     @t_o_priority.setter
     def t_o_priority(self, t_o_priority):
         """
-        Priority Target -> Originator for Implicit Messaging (Default: Priority.Scheduled)
-        Could be: Priority.Scheduled; Priority.High; Priority.Low; Priority.Urgent
+        Priority Target -> Originator for Implicit Messaging (Default: Priority.SCHEDULED)
+        Could be: Priority.SCHEDULED; Priority.HIGH; Priority.LOW; Priority.URGENT
         """
         self.__t_o_priority = t_o_priority
 
@@ -1174,8 +1177,8 @@ class EEIPClient:
     @property
     def o_t_realtime_format(self):
         """
-        Used Real-Time Format Originator -> Target for Implicit Messaging (Default: RealTimeFormat.Header32Bit)
-        Possible Values: RealTimeFormat.Header32Bit; RealTimeFormat.Heartbeat; RealTimeFormat.ZeroLength; RealTimeFormat.Modeless
+        Used Real-Time Format Originator -> Target for Implicit Messaging (Default: RealTimeFormat.HEADER32BIT)
+        Possible Values: RealTimeFormat.HEADER32BIT; RealTimeFormat.HEARTBEAT; RealTimeFormat.ZEROLENGTH; RealTimeFormat.MODELESS
         """
         return self.__o_t_realtime_format
 
@@ -1183,7 +1186,7 @@ class EEIPClient:
     def o_t_realtime_format(self, o_t_realtime_format):
         """
         Used Real-Time Format Originator -> Target for Implicit Messaging (Default: RealTimeFormat.Header32Bit)
-        Possible Values: RealTimeFormat.Header32Bit; RealTimeFormat.Heartbeat; RealTimeFormat.ZeroLength; RealTimeFormat.Modeless
+        Possible Values: RealTimeFormat.Header32Bit; RealTimeFormat.Heartbeat; RealTimeFormat.ZEROLENGTH; RealTimeFormat.MODELESS
         """
         self.__o_t_realtime_format = o_t_realtime_format
 
@@ -1191,7 +1194,7 @@ class EEIPClient:
     def t_o_realtime_format(self):
         """
         Used Real-Time Format Target -> Originator for Implicit Messaging (Default: RealTimeFormat.Modeless)
-        Possible Values: RealTimeFormat.Header32Bit; RealTimeFormat.Heartbeat; RealTimeFormat.ZeroLength; RealTimeFormat.Modeless
+        Possible Values: RealTimeFormat.Header32Bit; RealTimeFormat.Heartbeat; RealTimeFormat.ZEROLENGTH; RealTimeFormat.MODELESS
         """
         return self.__t_o_realtime_format
 
@@ -1199,7 +1202,7 @@ class EEIPClient:
     def t_o_realtime_format(self, t_o_realtime_format):
         """
         Used Real-Time Format Target -> Originator for Implicit Messaging (Default: RealTimeFormat.Modeless)
-        Possible Values: RealTimeFormat.Header32Bit; RealTimeFormat.Heartbeat; RealTimeFormat.ZeroLength; RealTimeFormat.Modeless
+        Possible Values: RealTimeFormat.Header32Bit; RealTimeFormat.Heartbeat; RealTimeFormat.ZEROLENGTH; RealTimeFormat.MODELESS
         """
         self.__t_o_realtime_format = t_o_realtime_format
 

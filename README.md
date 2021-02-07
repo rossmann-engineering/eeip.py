@@ -16,6 +16,7 @@ Visit www.eeip-library.de for more informations and Codesamples
    3.1.	[Usage of Implicit Messaging to Read and Write data to Rockwell Point I/O](#example1)  
 4. [Library Documentation](#librarydocumentation)   
     4.1.	[Methods](#methods)  
+    4.2.	[Properties](#properties)  
 
 <div id="installation"/>
 
@@ -176,3 +177,147 @@ large_forward_open: Use Service code 0x58 (Large_Forward_Open) if true, otherwis
 **def forward_close(self)**
 
 Closes a connection (Service code 0x4E)  
+
+<div id="properties"/>
+
+#### 4.2 Properties
+
+**tcp_port**
+
+TCP of the Remote Device (Default is 0xAF12)
+
+**target_udp_port**
+
+Only for Implicit Messaging  
+UDP-Port of the IO-Adapter for explicit Messaging - Standard is 0x08AE
+
+**originator_udp_port**
+
+Only for Implicit Messaging  
+UDP-Port of the Scanner for explicit Messaging - Standard is 0x08AE
+
+**ip_address**
+
+IP-Address of the Ethernet/IP Device
+
+**o_t_requested_packet_rate**
+
+Only for Implicit Messaging  
+Requested Packet Rate (RPI) in ms Originator -> Target for implicit messaging (Default 0x7A120 -> 500ms)
+
+**t_o_requested_packet_rate**
+
+Only for Implicit Messaging  
+Requested Packet Rate (RPI) in ms Target -> Originator for implicit messaging (Default 0x7A120 -> 500ms)
+
+**o_t_owner_redundant**
+
+Only for Implicit Messaging  
+"1" Indicates that multiple connections are allowed Target -> Originator for Implicit-Messaging (Default: TRUE)
+For forward open
+
+**t_o_owner_redundant**
+
+Only for Implicit Messaging  
+"1" Indicates that multiple connections are allowed Originator -> Target for Implicit-Messaging (Default: TRUE)
+For forward open
+
+**o_t_variable_length**
+
+Only for Implicit Messaging  
+With a fixed size connection, the amount of data shall be the size of specified in the "Connection Size" Parameter.  
+With a variable size, the amount of data could be up to the size specified in the "Connection Size" Parameter
+Originator -> Target for Implicit Messaging (Default: True (Variable length))
+For forward open
+
+**t_o_variable_length**
+
+Only for Implicit Messaging  
+With a fixed size connection, the amount of data shall be the size of specified in the "Connection Size" Parameter.  
+With a variable size, the amount of data could be up to the size specified in the "Connection Size" Parameter
+Target -> Originator for Implicit Messaging (Default: True (Variable length))
+For forward open
+
+**o_t_length**
+
+Only for Implicit Messaging  
+The maximum size in bytes (only pure data without sequence count and 32-Bit Real Time Header (if present)) from Target -> Originator for Implicit Messaging (Default: 505)
+Forward open max 505
+
+**t_o_length**
+
+Only for Implicit Messaging  
+The maximum size in bytes (only pure data without sequence count and 32-Bit Real Time Header (if present)) from Originator -> Target for Implicit Messaging (Default: 505)
+Forward open max 505
+
+**o_t_connection_type**
+
+Only for Implicit Messaging  
+Connection Type Originator -> Target for Implicit Messaging (Default: ConnectionType.MULTICAST)
+Possible values: ConnectionType.NULL, ConnectionType.MULTICAST, ConnectionType.POINT_TO_POINT
+
+**t_o_connection_type**
+
+Only for Implicit Messaging  
+Connection Type Target -> Originator for Implicit Messaging (Default: ConnectionType.MULTICAST)
+Possible values: ConnectionType.NULL, ConnectionType.MULTICAST, ConnectionType.POINT_TO_POINT
+
+**o_t_priority**
+
+Only for Implicit Messaging  
+Priority Originator -> Target for Implicit Messaging (Default: Priority.SCHEDULED)
+Could be: Priority.SCHEDULED; Priority.HIGH; Priority.LOW; Priority.URGENT
+
+**t_o_priority**
+
+Only for Implicit Messaging  
+Priority Target -> Originator for Implicit Messaging (Default: Priority.SCHEDULED)
+Could be: Priority.SCHEDULED; Priority.HIGH; Priority.LOW; Priority.URGENT
+
+**o_t_instance_id**
+
+Only for Implicit Messaging  
+Class Assembly (Consuming IO-Path - Outputs) Originator -> Target for Implicit Messaging (Default: 0x64)
+
+**t_o_instance_id**
+
+Only for Implicit Messaging  
+Class Assembly (Consuming IO-Path - Outputs) Target -> Originator for Implicit Messaging (Default: 0x64)
+
+**o_t_iodata**
+
+Only for Implicit Messaging  
+Provides Access to the Class 1 Real-Time IO-Data Originator -> Target for Implicit Messaging
+
+**t_o_iodata**
+
+Only for Implicit Messaging  
+Provides Access to the Class 1 Real-Time IO-Data Target -> Originator for Implicit Messaging
+
+**o_t_realtime_format**
+
+Only for Implicit Messaging  
+Used Real-Time Format Originator -> Target for Implicit Messaging (Default: RealTimeFormat.HEADER32BIT)
+Possible Values: RealTimeFormat.HEADER32BIT; RealTimeFormat.HEARTBEAT; RealTimeFormat.ZEROLENGTH; RealTimeFormat.MODELESS
+
+**t_o_realtime_format**
+
+Only for Implicit Messaging  
+Used Real-Time Format Target -> Originator for Implicit Messaging (Default: RealTimeFormat.HEADER32BIT)
+Possible Values: RealTimeFormat.HEADER32BIT; RealTimeFormat.HEARTBEAT; RealTimeFormat.ZEROLENGTH; RealTimeFormat.MODELESS
+
+**assembly_object_class**
+
+Only for Implicit Messaging  
+AssemblyObject for the Configuration Path in case of Implicit Messaging (Standard: 0x04)
+
+**configuration_assembly_instance_id**
+
+Only for Implicit Messaging  
+ConfigurationAssemblyInstanceID is the InstanceID of the configuration Instance in the Assembly Object Class (Standard: 0x01)
+
+**last_received_implicit_message**
+
+Only for Implicit Messaging  
+Date and time when the last Message has been received
+

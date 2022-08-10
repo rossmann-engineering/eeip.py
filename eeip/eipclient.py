@@ -295,17 +295,18 @@ class EEIPClient:
         :param large_forward_open: Use Service code 0x58 (Large_Forward_Open) if true, otherwise 0x54 (Forward_Open)
         """
         self.__udp_client_receive_closed = False
+
+        # Default is 2 bytes offset for CIP Sequence Count, for *all*
+        # cases.  Heartbeat assemblys have no data payload but still
+        # have a CIP Sequence Count, that never changes.
         o_t_header_offset = 2
         if (self.__o_t_realtime_format == RealTimeFormat.HEADER32BIT):
             o_t_header_offset = 6
-        if (self.__o_t_realtime_format == RealTimeFormat.HEARTBEAT):
-            o_t_header_offset = 0
 
+        # Same here, 2 bytes CIP Sequence Count offset for all cases.
         t_o_header_offset = 2
         if (self.__t_o_realtime_format == RealTimeFormat.HEADER32BIT):
             t_o_header_offset = 6
-        if (self.__t_o_realtime_format == RealTimeFormat.HEARTBEAT):
-            t_o_header_offset = 0
 
         length_offset = 5 + (0 if self.__t_o_connection_type == ConnectionType.NULL else 2) + (0 if self.__o_t_connection_type == ConnectionType.NULL else 2)
 

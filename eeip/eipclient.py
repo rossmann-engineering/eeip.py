@@ -88,7 +88,7 @@ class EEIPClient:
         if self.__tcpClient_socket is not None:
             self.__tcpClient_socket.settimeout(5)
             self.__tcpClient_socket.connect((address, port))
-            self.__thread = threading.Thread(target=self.__listen, args=())
+            self.__thread = threading.Thread(target=self.__listen, args=(), daemon=True)
             self.__thread.start()
             self.__tcpClient_socket.send(bytearray(__encapsulation.to_bytes()))
 
@@ -114,8 +114,13 @@ class EEIPClient:
         self.__tcpClient_socket.send(bytearray(__encapsulation.to_bytes()))
         if self.__tcpClient_socket is not None:
             self.__stoplistening = True
-            self.__tcpClient_socket.shutdown(socket.SHUT_RDWR)
-            self.__tcpClient_socket.close()
+            try:
+                self.__tcpClient_socket.shutdown(socket.SHUT_RDWR)
+                self.__tcpClient_socket.close()
+                if self.__thread is not None:
+                    self.__thread.join()
+            except:
+                pass
         self.__session_handle = 0
 
 

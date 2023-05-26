@@ -749,7 +749,7 @@ class EEIPClient:
             # -------------------Length
 
             # -------------------Sequence count
-            sequence += sequence
+            sequence += 1
             if self.__o_t_realtime_format != RealTimeFormat.HEARTBEAT:
                 message.append(sequence & 0xFF)
                 message.append((sequence & 0xFF00) >> 8)
